@@ -4000,7 +4000,7 @@ dependencies = [
 [[package]]
 name = "raven-uxn"
 version = "0.1.0"
-source = "git+https://github.com/MarceColl/raven#37ba2ab05e704bc76924df16d85d721ea334810e"
+source = "git+https://github.com/MarceColl/raven#40a406b5ede84b7d88cee899447db0d7f65e3bd1"
 dependencies = [
  "zerocopy 0.8.18",
 ]

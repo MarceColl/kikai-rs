@@ -1,10 +1,9 @@
 use std::path::Path;
-use std::io::Read;
 use bevy::prelude::*;
 use raven_uxn::{Uxn, UxnRam, Backend};
 use crate::devices::{UnitIO, CommandPorts, MovementPorts};
 use crate::tools::assembler::{assemble, Program};
-use anyhow::{Context, Result};
+use std::collections::BTreeSet;
 
 pub struct CpuLimits {
     num_cycles: u32,
@@ -16,6 +15,11 @@ pub struct Executable {
     pub device: UnitIO,
     pub limits: CpuLimits,
     pub program: Program,
+    pub breakpoints: BTreeSet<u16>,
+    pub pc: Option<u16>,
+    /// Keeps a stack of vectors we need to call
+    pub vector_queue: Vec<u16>,
+    pub cycles_left: u32,
 }
 
 impl Executable {
@@ -41,8 +45,50 @@ impl Executable {
             cpu: uxn,
             device,
             limits,
-            program: program,
+            program,
+            breakpoints: BTreeSet::new(),
+            pc: None,
+            vector_queue: Vec::new(),
+            cycles_left: 0,
         }
+    }
+
+    pub fn add_breakpoint(&mut self, addr: &u16) {
+        self.breakpoints.insert(*addr);
+    }
+
+    pub fn has_breakpoint_at(&self, addr: &u16) -> bool {
+        self.breakpoints.contains(addr)
+    }
+
+    pub fn remove_breakpoint(&mut self, addr: &u16) {
+        self.breakpoints.remove(addr);
+    }
+
+    pub fn step(&mut self, transform: &mut Transform) {
+        let mut device = self.device.arm(transform);
+        if let Some(pc) = self.pc {
+            self.cycles_left -= 1;
+            self.pc = self.cpu.step(&mut device, pc);
+        }
+    }
+
+    pub fn cont(&mut self, transform: &mut Transform) {
+        while let Some(pc) = self.pc {
+            if self.has_breakpoint_at(&pc) { break; }
+            if self.cycles_left == 0 { break; }
+
+            let mut device = self.device.arm(transform);
+            self.pc = self.cpu.step(&mut device, pc);
+        }
+    }
+
+    pub fn start(&mut self) {
+        self.pc = Some(0x100);
+    }
+
+    pub fn can_step(&self) -> bool {
+        self.pc.is_some()
     }
 
     pub fn execute(&mut self, transform: &mut Transform, vector: u16) {
@@ -52,22 +98,22 @@ impl Executable {
 
     pub fn move_vector(&mut self) -> u16 {
         let mut t = self.arbitrary_transform();
-        let mut device = self.device.arm(&mut t);
+        let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<CommandPorts>();
         v.move_vector.get()
     }
 
     pub fn set_move_command_coords(&mut self, x: u16, y: u16) {
         let mut t = self.arbitrary_transform();
-        let mut device = self.device.arm(&mut t);
-        let mut v = self.cpu.dev_mut::<MovementPorts>();
+        let device = self.device.arm(&mut t);
+        let v = self.cpu.dev_mut::<MovementPorts>();
         v.x.set(x);
         v.y.set(y);
     }
 
     pub fn loop_vector(&mut self) -> u16 {
         let mut t = self.arbitrary_transform();
-        let mut device = self.device.arm(&mut t);
+        let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<CommandPorts>();
         v.loop_vector.get()
     }

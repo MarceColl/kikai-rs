@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use crate::egui::{RichText, Color32, WidgetText};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
@@ -180,8 +181,8 @@ impl Lexer {
             let atom = self.lex(&src_string);
 
             Some(Span {
-                atom: atom,
-                src_string: src_string,
+                atom,
+                src_string,
                 start: self.cursor,
                 end: self.cursor + 4
             })
@@ -232,12 +233,10 @@ impl Lexer {
             Atom::RParen
         } else if let Some(instr) = parse_instruction(chunk) {
             Atom::Instr(instr)
+        } else if chunk.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+            Atom::ByteRaw(u8::from_str_radix(chunk, 16).unwrap())
         } else {
-            if chunk.chars().next().map_or(false, |c| c.is_ascii_digit()) {
-                Atom::ByteRaw(u8::from_str_radix(&chunk, 16).unwrap())
-            } else {
-                Atom::ProcCall(chunk.to_string())
-            }
+            Atom::ProcCall(chunk.to_string())
         }
     }
 }
@@ -279,7 +278,7 @@ pub struct Program {
 pub fn assemble(src: String) -> Result<Program, String> {
     let mut lexer = Lexer::new(src);
 
-    let mut cursor: usize = 0;
+    let cursor: usize = 0;
     let mut curr_addr: u16 = 0;
     let mut in_comment = false;
 
@@ -303,7 +302,7 @@ pub fn assemble(src: String) -> Result<Program, String> {
             },
             Atom::RelativePadding(pad) => { curr_addr += pad; },
             Atom::AbsolutePadding(addr) => { curr_addr = *addr; },
-            ref atom => curr_addr += rom_size(atom),
+            atom => curr_addr += rom_size(atom),
         }
 
         spans.push(span);
@@ -397,57 +396,112 @@ pub fn assemble(src: String) -> Result<Program, String> {
     Ok(program)
 }
 
-pub fn disassm(program: &Program) -> String {
-    let rom = &program.rom;
-    let mut dis: String = "|100\n".to_string();
+pub enum DisassmAtom {
+    Lit(u8),
+    Lit2(u16),
+    Jsi(i16),
+    Jci(i16),
+    Jmi(i16),
+    Instr(Instr),
+    AbsoluteLabel(String),
+    RelativeLabel(String),
+}
 
+pub struct DisassmSpan {
+    pub addr: u16,
+    pub atom: DisassmAtom,
+}
+
+pub struct Disassm {
+    pub spans: Vec<DisassmSpan>,
+}
+
+pub fn disassm(program: &Program) -> Disassm {
+    let rom = &program.rom;
+    let inverse_sym_table: BTreeMap<u16, Vec<String>> = program.symbol_table.clone()
+                                                                       .into_iter()
+                                                                       .fold(BTreeMap::new(), |mut acc, (k, v)| {
+                                                                           acc.entry(v).or_default().push(k);
+                                                                           acc
+                                                                       });
     let mut pointer = 0;
+    let base_addr = 0x100;
+
+    let mut spans: Vec<DisassmSpan> = vec![];
 
     while pointer < rom.len() {
         let instr: Instr =  rom[pointer].into();
 
+        let addr: u16 = (base_addr + pointer) as u16;
+        if let Some(labels) = inverse_sym_table.get(&addr) {
+            for label in labels {
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::AbsoluteLabel(label.to_string()),
+                    addr,
+                });
+            }
+        }
+
         match instr {
             Instr::LIT => {
                 let d = rom[pointer+1];
-                dis.push_str(format!("  #{}\n", d).as_str());
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::Lit(d),
+                    addr,
+                });
                 pointer += 2;
             },
             Instr::LIT2 => {
                 let d1 = rom[pointer+1];
                 let d2 = rom[pointer+2];
                 let d = u16::from_be_bytes([d1, d2]);
-                dis.push_str(format!("  #{}\n", d).as_str());
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::Lit2(d),
+                    addr,
+                });
                 pointer += 3;
             },
             Instr::JSI => {
                 let d1 = rom[pointer+1];
                 let d2 = rom[pointer+2];
                 let d = i16::from_be_bytes([d1, d2]);
-                dis.push_str(format!("  JSI {}\n", d).as_str());
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::Jsi(d),
+                    addr,
+                });
                 pointer += 3;
             },
             Instr::JCI => {
                 let d1 = rom[pointer+1];
                 let d2 = rom[pointer+2];
                 let d = i16::from_be_bytes([d1, d2]);
-                dis.push_str(format!("  JCI {}\n", d).as_str());
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::Jci(d),
+                    addr,
+                });
                 pointer += 3;
             },
             Instr::JMI => {
                 let d1 = rom[pointer+1];
                 let d2 = rom[pointer+2];
                 let d = i16::from_be_bytes([d1, d2]);
-                dis.push_str(format!("  JMI {}\n", d).as_str());
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::Jmi(d),
+                    addr,
+                });
                 pointer += 3;
             },
             instr => {
-                dis.push_str(format!("  {:?}\n", instr).as_str());
+                spans.push(DisassmSpan {
+                    atom: DisassmAtom::Instr(instr),
+                    addr,
+                });
                 pointer += 1;
             }
         }
     }
 
-    dis
+    Disassm { spans }
 }
 
 

@@ -1,0 +1,31 @@
+|00 @Command &move-vector $2 &attack-vector $2 &create-vector $2 &x $2 &y $2 &loop-vector $2
+|10 @Movement &move-decision-vector $2 &x $2 &y $2 &dir $1
+
+|100
+    ;on-move-command .Command/move-vector DEO2
+    ;on-attack .Command/attack-vector DEO2
+    ;on-loop .Command/loop-vector DEO2
+    ;on-move-decision .Movement/move-decision-vector DEO2
+BRK
+
+@on-move-decision
+BRK
+
+@on-move-command
+    .Command/x DEI2 .Movement/x DEI2
+    GTH ?&else .on-loop/dir #01 STR BRK &else
+    .on-loop/dir #03 STR BRK
+BRK
+
+@on-attack
+BRK
+
+@on-loop
+    [ LIT &dir 0 ] .Movement/dir DEO
+BRK
+
+@signed-lth
+	DUP2 #8080 AND2 EQU ?&diff LTH JMP2r &diff LTH #00 NEQ JMP2r
+
+@signed-gth
+	DUP2 #8080 AND2 EQU ?&diff GTH JMP2r &diff GTH #00 NEQ JMP2r

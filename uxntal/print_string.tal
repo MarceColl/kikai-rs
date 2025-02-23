@@ -1,0 +1,17 @@
+|10 @Console &vector $2 &read $1 &pad $5 &write $1 &error $1
+
+|100
+
+@on-reset
+	;my-string print-text
+	BRK
+
+@print-text
+	&while
+		LDAk .Console/write DEO
+		INC2 LDAk ?&while
+	POP2
+	JMP2r
+
+@my-string
+	"Hello 20 "World! 00

@@ -14,16 +14,24 @@ use egui::{
 };
 use anyhow::Result;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use rusqlite::{params, Connection, OpenFlags};
+use rusqlite_migration::{Migrations, M};
 
 mod devices;
 mod components;
 mod bundles;
 mod tools;
+mod sandbox;
+mod unit_spawn;
+mod unit_repo;
 
 use crate::bundles::UnitBundle;
 use crate::components::{Selectable, Selected, Executable};
 use crate::devices::{CommandPorts, MovementPorts};
 use crate::tools::assembler::{disassm, DisassmAtom, Disassm};
+use crate::sandbox::SandboxPlugin;
+use crate::unit_spawn::UnitSpawnPlugin;
+use crate::unit_repo::UnitRepoPlugin;
 
 const BACKGROUND_COLOR: Color = Color::srgb(0., 0., 0.);
 
@@ -167,7 +175,6 @@ fn format_disassm_atom(atom: &DisassmAtom, is_current_instr: bool) -> WidgetText
     out.monospace().into()
 }
 
-
 fn executable_debugging(
     mut context: EguiContexts,
     mut executables: Query<(Entity, &mut Executable, &mut Transform), With<Selected>>,
@@ -293,7 +300,13 @@ impl Plugin for HelloPlugin {
         app.add_systems(Startup, configure_visuals_system);
         app.add_systems(
             Update,
-            (executable_debugging, update_executables, command_system, gizmos, selection_system).chain()
+            (
+                executable_debugging,
+                update_executables,
+                command_system,
+                gizmos,
+                selection_system,
+            ).chain()
         );
     }
 }
@@ -333,10 +346,17 @@ fn configure_visuals_system(mut contexts: EguiContexts) {
 struct Unit {}
 
 fn main() -> Result<()> {
+    let mut conn = Connection::open_with_flags("./units.db", OpenFlags::default()).unwrap();
+
+    conn.pragma_update_and_check(None, "journal_mode", &"WAL", |_| Ok(())).unwrap();
+
     App::new()
+        .add_plugins(UnitRepoPlugin)
         .add_plugins(DefaultPlugins)
         .add_plugins(HelloPlugin)
         .add_plugins(EguiPlugin)
+        .add_plugins(UnitSpawnPlugin)
+        .add_plugins(SandboxPlugin)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .run();
 

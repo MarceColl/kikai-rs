@@ -1,11 +1,20 @@
 |00 @Command &move-vector $2 &attack-vector $2 &create-vector $2 &x $2 &y $2 &loop-vector $2
 |10 @Movement &move-decision-vector $2 &x $2 &y $2 &dir $1
 
+|000
+
+@Params
+    &stance 00
+    &patrol 00
+
 |100
     ;on-move-command .Command/move-vector DEO2
     ;on-attack .Command/attack-vector DEO2
     ;on-loop .Command/loop-vector DEO2
     ;on-move-decision .Movement/move-decision-vector DEO2
+BRK
+
+@on-interface-draw
 BRK
 
 @on-move-decision
@@ -29,3 +38,11 @@ BRK
 
 @signed-gth
 	DUP2 #8080 AND2 EQU ?&diff GTH JMP2r &diff GTH #00 NEQ JMP2r
+
+@stance-button-str
+    "Aggressive 00
+
+@patrol-button-str
+    "Patrol 00
+
+@BUTTON JMP2r

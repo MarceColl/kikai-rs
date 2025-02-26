@@ -16,7 +16,7 @@ fn unit_spawner(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for request in spawn_events.read() {
-        commands.spawn(UnitBundle::new(request.position, &mut meshes, &mut materials));
+        commands.spawn(UnitBundle::new(request.unit_id, request.position, &mut meshes, &mut materials));
     }
 }
 

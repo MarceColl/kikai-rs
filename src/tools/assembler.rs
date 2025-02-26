@@ -270,6 +270,7 @@ pub fn rom_size(atom: &Atom) -> u16 {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Program {
     pub rom: Vec<u8>,
     pub symbol_table: BTreeMap<String, u16>,

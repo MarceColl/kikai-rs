@@ -24,6 +24,7 @@ mod tools;
 mod sandbox;
 mod unit_spawn;
 mod unit_repo;
+mod executable;
 
 use crate::bundles::UnitBundle;
 use crate::components::{Selectable, Selected, Executable};
@@ -32,19 +33,10 @@ use crate::tools::assembler::{disassm, DisassmAtom, Disassm};
 use crate::sandbox::SandboxPlugin;
 use crate::unit_spawn::UnitSpawnPlugin;
 use crate::unit_repo::UnitRepoPlugin;
+use crate::executable::ExecutablePlugin;
 
 const BACKGROUND_COLOR: Color = Color::srgb(0., 0., 0.);
 
-fn update_executables(mut query: Query<(&mut Executable, &mut Transform)>) {
-    for (mut executable, mut transform) in &mut query {
-        executable.cycles_left = 1000;
-        if let None = executable.pc {
-            let loop_vec = executable.loop_vector();
-            executable.pc = Some(loop_vec);
-            executable.cont(&mut transform);
-        }
-    }
-}
 
 #[derive(Component)]
 struct MainCamera;
@@ -59,8 +51,6 @@ fn add_initial_unit(
     asset_server: Res<AssetServer>,
 ) {
     commands.spawn((Camera2dBundle::default(), MainCamera));
-    commands.spawn(UnitBundle::new(Vec2::new(100., 100.), &mut meshes, &mut materials));
-    commands.spawn(UnitBundle::new(Vec2::new(300., 100.), &mut meshes, &mut materials));
 }
 
 fn selection_system(
@@ -183,6 +173,7 @@ fn executable_debugging(
         let device = executable.device.arm(&mut transform);
 
         egui::Window::new("Unit Inspector".to_string()).scroll(true).show(context.ctx_mut(), |ui| {
+            ui.label(format!("Unit Type ID: {}", executable.unit_id));
             egui::CollapsingHeader::new("Devices").show(ui, |ui| {
                 egui::CollapsingHeader::new("Command").show(ui, |ui| {
                     let cmd = executable.cpu.dev::<CommandPorts>();
@@ -290,6 +281,27 @@ fn executable_debugging(
    })
 }
 
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>
+) {
+    let texture = asset_server.load("../assets/spritesheets/purple.png");
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(7), 50, 30, Some(UVec2::splat(1)), None);
+    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+
+    commands.spawn((
+        Sprite::from_atlas_image(
+            texture,
+            TextureAtlas {
+                layout: texture_atlas_layout,
+                index: 300,
+            },
+        ),
+        Transform::from_scale(Vec3::splat(6.0)),
+    ));
+}
+
 
 pub struct HelloPlugin;
 
@@ -302,10 +314,10 @@ impl Plugin for HelloPlugin {
             Update,
             (
                 executable_debugging,
-                update_executables,
                 command_system,
                 gizmos,
                 selection_system,
+                setup,
             ).chain()
         );
     }
@@ -346,10 +358,6 @@ fn configure_visuals_system(mut contexts: EguiContexts) {
 struct Unit {}
 
 fn main() -> Result<()> {
-    let mut conn = Connection::open_with_flags("./units.db", OpenFlags::default()).unwrap();
-
-    conn.pragma_update_and_check(None, "journal_mode", &"WAL", |_| Ok(())).unwrap();
-
     App::new()
         .add_plugins(UnitRepoPlugin)
         .add_plugins(DefaultPlugins)
@@ -357,6 +365,7 @@ fn main() -> Result<()> {
         .add_plugins(EguiPlugin)
         .add_plugins(UnitSpawnPlugin)
         .add_plugins(SandboxPlugin)
+        .add_plugins(ExecutablePlugin)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .run();
 

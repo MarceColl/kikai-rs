@@ -2987,6 +2987,7 @@ dependencies = [
  "bevy",
  "bevy_egui",
  "raven-uxn",
+ "regex",
  "rusqlite",
  "rusqlite-pool",
  "rusqlite_migration",

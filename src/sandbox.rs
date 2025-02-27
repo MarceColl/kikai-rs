@@ -1,3 +1,4 @@
+use rand::Rng;
 use crate::egui::{
     style::{WidgetVisuals, Widgets},
     text::{Fonts, LayoutJob, TextFormat},
@@ -90,9 +91,13 @@ fn draw_sandbox_ui(
                 }
 
                 if ui.button("Create Unit").clicked() {
+                    let mut rng = rand::thread_rng();
+
+                    let rx: i8 = rng.gen();
+                    let ry: i8 = rng.gen();
                     spawn_events.send(SpawnUnitRequest {
                         unit_id: 1,
-                        position: Vec2::new(10., 10.),
+                        position: Vec2::new(rx as f32, ry as f32),
                     });
                 }
 

@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = "1.0.95"
 bevy = "0.15.1"
 bevy_egui = "0.33.0"
+rand = "0.9.0"
 raven-uxn = { package = "raven-uxn", git = "https://github.com/MarceColl/raven" }
 regex = "1.11.1"
 rusqlite = { version = "0.32.1", features = ["bundled"] }

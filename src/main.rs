@@ -22,15 +22,18 @@ mod sandbox;
 mod tools;
 mod unit_repo;
 mod unit_spawn;
+mod radio;
+
 
 use crate::bundles::UnitBundle;
 use crate::components::{Executable, Selectable, Selected};
-use crate::devices::{CommandPorts, MovementPorts};
+use crate::devices::{CommandPorts, MovementPorts, RadioPorts};
 use crate::executable::ExecutablePlugin;
 use crate::sandbox::SandboxPlugin;
 use crate::tools::assembler::{disassm, Disassm, DisassmAtom};
 use crate::unit_repo::UnitRepoPlugin;
 use crate::unit_spawn::UnitSpawnPlugin;
+use crate::radio::{RadioPlugin, RadioMessage};
 
 const BACKGROUND_COLOR: Color = Color::srgb(0., 0., 0.);
 
@@ -108,6 +111,7 @@ fn command_system(
     mut context: EguiContexts,
     mut query: Query<(Entity, &mut Executable, &mut Transform), With<Selected>>,
     mut mouse_events: EventReader<MouseButtonInput>,
+    mut radio_messages: EventWriter<RadioMessage>,
     mut commands: Commands,
 ) {
     if context.ctx_mut().wants_pointer_input() {
@@ -123,7 +127,11 @@ fn command_system(
                         let move_vec = executable.move_vector();
                         executable.set_move_command_coords(5, 5);
                         executable.pc = Some(move_vec);
-                        executable.cont(&mut transform);
+                        if let Some(mut rm) = executable.cont(&mut transform) {
+                            rm.origin_entity_id = Some(eid);
+                            radio_messages.send(rm);
+                            println!("SENT RADIO MESSAGE");
+                        }
                     }
                     (MouseButton::Left, ButtonState::Released) => {
                         commands.entity(eid).remove::<Selected>();
@@ -169,20 +177,31 @@ fn executable_debugging(
             egui::CollapsingHeader::new("Devices").show(ui, |ui| {
                 egui::CollapsingHeader::new("Command").show(ui, |ui| {
                     let cmd = executable.cpu.dev::<CommandPorts>();
-                    ui.label(format!("Move Vector: {}", cmd.move_vector.get()));
-                    ui.label(format!("Attack Vector: {}", cmd.attack_vector.get()));
-                    ui.label(format!("Create Vector: {}", cmd.create_vector.get()));
-                    ui.label(format!("x: {}", cmd.x.get()));
-                    ui.label(format!("y: {}", cmd.y.get()));
-                    ui.label(format!("Loop Vector: {}", cmd.loop_vector.get()));
+                    ui.label(format!("Move Vector: {:04X}", cmd.move_vector.get()));
+                    ui.label(format!("Attack Vector: {:04X}", cmd.attack_vector.get()));
+                    ui.label(format!("Create Vector: {:04X}", cmd.create_vector.get()));
+                    ui.label(format!("x: {:02X}", cmd.x.get()));
+                    ui.label(format!("y: {:02X}", cmd.y.get()));
+                    ui.label(format!("Loop Vector: {:02X}", cmd.loop_vector.get()));
                 });
 
                 egui::CollapsingHeader::new("Movement").show(ui, |ui| {
                     let cmd = executable.cpu.dev::<MovementPorts>();
-                    ui.label(format!("Vector: {}", cmd.vector.get()));
-                    ui.label(format!("x: {}", cmd.x.get()));
-                    ui.label(format!("y: {}", cmd.y.get()));
-                    ui.label(format!("Dir: {}", cmd.dir));
+                    ui.label(format!("Vector: {:04X}", cmd.vector.get()));
+                    ui.label(format!("x: {:04X}", cmd.x.get()));
+                    ui.label(format!("y: {:04X}", cmd.y.get()));
+                    ui.label(format!("Dir: {:02X}", cmd.dir));
+                });
+
+                egui::CollapsingHeader::new("Radio").show(ui, |ui| {
+                    let cmd = executable.cpu.dev::<RadioPorts>();
+                    ui.label(format!("Vector: {:04X}", cmd.vector.get()));
+                    ui.label(format!("packeth: {:04X}", cmd.packeth.get()));
+                    ui.label(format!("packetl: {:04X}", cmd.packetl.get()));
+                    ui.label(format!("command: {:02X}", cmd.command));
+                    ui.label(format!("freq: {:02X}", cmd.freq));
+                    ui.label(format!("strength: {:02X}", cmd.strength));
+                    ui.label(format!("enabled: {:02X}", cmd.enabled));
                 });
             });
 
@@ -365,6 +384,7 @@ fn main() -> Result<()> {
         .add_plugins(UnitSpawnPlugin)
         .add_plugins(SandboxPlugin)
         .add_plugins(ExecutablePlugin)
+        .add_plugins(RadioPlugin)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .run();
 

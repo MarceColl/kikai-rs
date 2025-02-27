@@ -19,15 +19,20 @@ pub struct Executable {
     pub pc: Option<u16>,
     /// Keeps a stack of vectors we need to call
     pub vector_queue: Vec<u16>,
+    pub unit_id: u64,
     pub cycles_left: u32,
 }
 
 impl Executable {
-    pub fn from_file(path: impl AsRef<Path>) -> Self {
-        let ram = UxnRam::new();
-        let mut uxn = Uxn::new(ram.leak(), Backend::Interpreter);
+    pub fn from_file(unit_id: u64, path: impl AsRef<Path>) -> Self {
         let src = std::fs::read_to_string("basic.tal").unwrap();
         let program = assemble(src).unwrap();
+        Executable::from_program(unit_id, &program)
+    }
+
+    pub fn from_program(unit_id: u64, program: &Program) -> Self {
+        let ram = UxnRam::new();
+        let mut uxn = Uxn::new(ram.leak(), Backend::Interpreter);
         uxn.reset(&program.rom);
 
         let mut transform = Transform {
@@ -45,12 +50,18 @@ impl Executable {
             cpu: uxn,
             device,
             limits,
-            program,
+            program: program.clone(),
             breakpoints: BTreeSet::new(),
             pc: None,
             vector_queue: Vec::new(),
+            unit_id,
             cycles_left: 0,
         }
+    }
+
+    pub fn load_program(&mut self, program: &Program) {
+        self.cpu.reset(&program.rom);
+        self.program = program.clone();
     }
 
     pub fn add_breakpoint(&mut self, addr: &u16) {

@@ -20,6 +20,7 @@ pub struct UnitBundle {
 
 impl UnitBundle {
     pub fn new(
+        unit_type_id: u64,
         pos: Vec2,
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
@@ -28,7 +29,7 @@ impl UnitBundle {
             unit: Unit {},
             mesh: Mesh2d(meshes.add(Circle::default())),
             material: MeshMaterial2d(materials.add(BALL_COLOR)),
-            executable: Executable::from_file("unit.rom"),
+            executable: Executable::from_file(unit_type_id, "unit.rom"),
             transform: Transform {
                 translation: pos.extend(0.),
                 scale: UNIT_SIZE,

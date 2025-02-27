@@ -5,8 +5,8 @@
 ///! attack_vector -> Called when the unit is given an attack command (maybe move it to a radio device?)
 ///! loop_vector -> This is the main loop vector for repetitive tasks
 use raven_uxn::{Ports, Uxn, DEV_SIZE};
-use zerocopy::{U16, BigEndian};
-use zerocopy_derive::{IntoBytes, FromBytes, KnownLayout, Immutable};
+use zerocopy::{BigEndian, U16};
+use zerocopy_derive::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 #[repr(C)]
@@ -20,7 +20,9 @@ pub struct CommandPorts {
     _padding: u32,
 }
 
-impl Ports for CommandPorts { const BASE: u8 = 0x00; }
+impl Ports for CommandPorts {
+    const BASE: u8 = 0x00;
+}
 
 pub struct Command {}
 
@@ -41,7 +43,7 @@ impl Command {
 }
 
 impl CommandPorts {
-    fn dev<'a>(vm : &'a Uxn, i: usize) -> &'a Self {
+    fn dev<'a>(vm: &'a Uxn, i: usize) -> &'a Self {
         let pos = Self::BASE + (i * DEV_SIZE) as u8;
         vm.dev_at(pos)
     }

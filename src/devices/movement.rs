@@ -1,8 +1,7 @@
-
 use bevy::prelude::*;
 use raven_uxn::{Ports, Uxn, DEV_SIZE};
-use zerocopy::{U16, BigEndian};
-use zerocopy_derive::{IntoBytes, FromBytes, KnownLayout, Immutable};
+use zerocopy::{BigEndian, U16};
+use zerocopy_derive::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 #[repr(C)]
@@ -13,11 +12,11 @@ pub struct MovementPorts {
     pub y: U16<BigEndian>,
     pub dir: u8,
     _p1: u8,
-    _p2: u64
+    _p2: u64,
 }
 
 impl MovementPorts {
-    fn dev<'a>(vm : &'a Uxn, i: usize) -> &'a Self {
+    fn dev<'a>(vm: &'a Uxn, i: usize) -> &'a Self {
         let pos = Self::BASE + (i * DEV_SIZE) as u8;
         vm.dev_at(pos)
     }
@@ -42,12 +41,14 @@ impl Movement {
     pub fn deo(&mut self, vm: &mut Uxn, target: u8, transform: &mut Transform) {
         let d = vm.dev::<MovementPorts>();
         match d.dir % 5 {
-            0 => {},
+            0 => {}
             1 => transform.translation.x += 1.,
             2 => transform.translation.y -= 1.,
             3 => transform.translation.x -= 1.,
             4 => transform.translation.y += 1.,
-            _ => { unreachable!(); },
+            _ => {
+                unreachable!();
+            }
         };
     }
 }

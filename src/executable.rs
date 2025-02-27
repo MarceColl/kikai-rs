@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::tools::assembler::Program;
 use crate::components::Executable;
+use crate::tools::assembler::Program;
 
 #[derive(Event, Debug)]
 pub struct CodeReloadEvent {
@@ -22,7 +22,7 @@ fn update_executables(mut query: Query<(&mut Executable, &mut Transform)>) {
 
 fn code_reload_event_handler(
     mut reader: EventReader<CodeReloadEvent>,
-    mut query: Query<&mut Executable>
+    mut query: Query<&mut Executable>,
 ) {
     for ev in reader.read() {
         println!("EVENT: {:?}", ev);
@@ -40,11 +40,9 @@ pub struct ExecutablePlugin;
 
 impl Plugin for ExecutablePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_event::<CodeReloadEvent>()
-            .add_systems(
-                Update,
-                (update_executables, code_reload_event_handler).chain()
-            );
+        app.add_event::<CodeReloadEvent>().add_systems(
+            Update,
+            (update_executables, code_reload_event_handler).chain(),
+        );
     }
 }

@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::bundles::UnitBundle;
+use bevy::prelude::*;
 
 #[derive(Event)]
 pub struct SpawnUnitRequest {
@@ -16,14 +16,18 @@ fn unit_spawner(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     for request in spawn_events.read() {
-        commands.spawn(UnitBundle::new(request.unit_id, request.position, &mut meshes, &mut materials));
+        commands.spawn(UnitBundle::new(
+            request.unit_id,
+            request.position,
+            &mut meshes,
+            &mut materials,
+        ));
     }
 }
 
 impl Plugin for UnitSpawnPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_event::<SpawnUnitRequest>()
+        app.add_event::<SpawnUnitRequest>()
             .add_systems(PostUpdate, unit_spawner);
     }
 }

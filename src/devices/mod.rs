@@ -1,11 +1,11 @@
 use bevy::prelude::*;
-use raven_uxn::{Uxn, Device, Ports};
+use raven_uxn::{Device, Ports, Uxn};
 
 pub mod command;
 pub mod movement;
 
-pub use command::{CommandPorts, Command};
-pub use movement::{MovementPorts, Movement};
+pub use command::{Command, CommandPorts};
+pub use movement::{Movement, MovementPorts};
 
 pub struct UnitIO {
     command: Command,
@@ -26,7 +26,10 @@ impl UnitIO {
     }
 
     pub fn arm<'a>(&'a mut self, transform: &'a mut Transform) -> ArmedUnitIO<'a> {
-        ArmedUnitIO { transform, unit_io: self }
+        ArmedUnitIO {
+            transform,
+            unit_io: self,
+        }
     }
 }
 
@@ -35,7 +38,9 @@ impl Device for ArmedUnitIO<'_> {
         match target & 0xF0 {
             CommandPorts::BASE => self.unit_io.command.deo(vm, target),
             MovementPorts::BASE => self.unit_io.movement.deo(vm, target, self.transform),
-            _ => { println!("UNIMPLEMENTED DEVICE") }
+            _ => {
+                println!("UNIMPLEMENTED DEVICE")
+            }
         };
         true
     }

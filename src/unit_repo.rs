@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use rusqlite::{params, Connection, OpenFlags};
 use rusqlite_migration::{Migrations, M};
 
-
 pub struct UnitRepoPlugin;
 
 #[derive(Resource)]
@@ -22,7 +21,8 @@ impl UnitRepository {
         UnitRepository {
             pool: rusqlite_pool::ConnectionPool::new(10, || {
                 Connection::open_with_flags(db_path.clone(), OpenFlags::default())
-            }).unwrap(),
+            })
+            .unwrap(),
         }
     }
 
@@ -36,13 +36,15 @@ impl UnitRepository {
             "SELECT u.unit_id, u.name, uv.code FROM units AS u LEFT JOIN unit_versions AS uv ON (u.current_version_id = uv.version_id)"
         ).unwrap();
 
-        let rows = stmt.query_map([], |row| {
-            Ok(UnitDefinition {
-                unit_id: row.get(0)?,
-                name: row.get(1)?,
-                code: row.get(2)?,
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(UnitDefinition {
+                    unit_id: row.get(0)?,
+                    name: row.get(1)?,
+                    code: row.get(2)?,
+                })
             })
-        }).unwrap();
+            .unwrap();
 
         let mut units = Vec::new();
 
@@ -55,23 +57,30 @@ impl UnitRepository {
 
     pub fn new_unit_type(&self, name: String) {
         let mut conn = self.pool.pop().unwrap();
-        conn.execute("INSERT INTO units (name) VALUES (?1)", [name]).unwrap();
+        conn.execute("INSERT INTO units (name) VALUES (?1)", [name])
+            .unwrap();
     }
 
     pub fn update_code_for_unit(&self, unit_id: u64, new_code: String) {
         let mut conn = self.pool.pop().unwrap();
-        let version_id: u64 = conn.query_row(
-            "INSERT INTO unit_versions (unit_id, code) VALUES (?1, ?2) RETURNING version_id",
-            (unit_id, new_code),
-            |row| row.get(0),
-        ).unwrap();
-        conn.execute("UPDATE units SET current_version_id = ?1 WHERE unit_id = ?2", [version_id, unit_id]).unwrap();
+        let version_id: u64 = conn
+            .query_row(
+                "INSERT INTO unit_versions (unit_id, code) VALUES (?1, ?2) RETURNING version_id",
+                (unit_id, new_code),
+                |row| row.get(0),
+            )
+            .unwrap();
+        conn.execute(
+            "UPDATE units SET current_version_id = ?1 WHERE unit_id = ?2",
+            [version_id, unit_id],
+        )
+        .unwrap();
     }
 }
 
 fn run_migrations(conn: &mut Connection) {
-    let migrations = Migrations::new(vec![
-        M::up(r#"
+    let migrations = Migrations::new(vec![M::up(
+        r#"
             -- Units table - stores basic unit information and tracks current version
             CREATE TABLE units (
                 unit_id INTEGER PRIMARY KEY,
@@ -88,8 +97,8 @@ fn run_migrations(conn: &mut Connection) {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (unit_id) REFERENCES units (unit_id)
             );
-        "#),
-    ]);
+        "#,
+    )]);
 
     migrations.to_latest(conn).unwrap();
     println!("MIGRATIONS RAN");
@@ -102,8 +111,7 @@ fn setup_database(mut unit_repository: ResMut<UnitRepository>) {
 
 impl Plugin for UnitRepoPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(UnitRepository::new("./units.db"))
+        app.insert_resource(UnitRepository::new("./units.db"))
             .add_systems(Startup, setup_database);
     }
 }

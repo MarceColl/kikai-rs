@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 pub enum SelectableType {
     Unit,
-    Building
+    Building,
 }
 
 #[derive(Component)]

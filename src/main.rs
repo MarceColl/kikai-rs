@@ -1,42 +1,38 @@
+use anyhow::Result;
 use bevy::{
-    prelude::*,
-    input::{
-        ButtonState,
-        mouse::MouseButtonInput
-    },
-    math::bounding::{BoundingVolume, Aabb2d},
     color::palettes::css::*,
+    input::{mouse::MouseButtonInput, ButtonState},
+    math::bounding::{Aabb2d, BoundingVolume},
+    prelude::*,
 };
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use egui::{
     style::{WidgetVisuals, Widgets},
-    Color32, Label, Sense, RichText, vec2, WidgetText,
-    FontDefinitions, FontData, FontFamily, Pos2, Stroke,
+    vec2, Color32, FontData, FontDefinitions, FontFamily, Label, Pos2, RichText, Sense, Stroke,
+    WidgetText,
 };
-use anyhow::Result;
-use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use rusqlite::{params, Connection, OpenFlags};
 use rusqlite_migration::{Migrations, M};
 
-mod devices;
-mod components;
 mod bundles;
-mod tools;
-mod sandbox;
-mod unit_spawn;
-mod unit_repo;
+mod components;
+mod devices;
 mod executable;
+mod sandbox;
+mod tools;
+mod unit_repo;
+mod unit_spawn;
 
 use crate::bundles::UnitBundle;
-use crate::components::{Selectable, Selected, Executable};
+use crate::components::{Executable, Selectable, Selected};
 use crate::devices::{CommandPorts, MovementPorts};
-use crate::tools::assembler::{disassm, DisassmAtom, Disassm};
-use crate::sandbox::SandboxPlugin;
-use crate::unit_spawn::UnitSpawnPlugin;
-use crate::unit_repo::UnitRepoPlugin;
 use crate::executable::ExecutablePlugin;
+use crate::sandbox::SandboxPlugin;
+use crate::tools::assembler::{disassm, Disassm, DisassmAtom};
+use crate::unit_repo::UnitRepoPlugin;
+use crate::unit_spawn::UnitSpawnPlugin;
 
 const BACKGROUND_COLOR: Color = Color::srgb(0., 0., 0.);
-
 
 #[derive(Component)]
 struct MainCamera;
@@ -68,7 +64,10 @@ fn selection_system(
         return;
     }
 
-    if let Some(Ok(world_position)) = window.cursor_position().map(|cursor| camera.viewport_to_world_2d(global_transform, cursor)) {
+    if let Some(Ok(world_position)) = window
+        .cursor_position()
+        .map(|cursor| camera.viewport_to_world_2d(global_transform, cursor))
+    {
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
         for event in mouse_events.read() {
             query.iter().for_each(|(eid, selectable, transform)| {
@@ -91,7 +90,10 @@ fn gizmos(
     let window = q_window.single();
     let (camera, global_transform) = q_camera.single();
 
-    if let Some(Ok(world_position)) = window.cursor_position().map(|cursor| camera.viewport_to_world_2d(global_transform, cursor)) {
+    if let Some(Ok(world_position)) = window
+        .cursor_position()
+        .map(|cursor| camera.viewport_to_world_2d(global_transform, cursor))
+    {
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
         query.iter().for_each(|(eid, transform)| {
             let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() / 2.);
@@ -113,20 +115,22 @@ fn command_system(
     }
 
     for event in mouse_events.read() {
-        query.iter_mut().for_each(|(eid, mut executable, mut transform)| {
-            match (event.button, event.state) {
-                (MouseButton::Right, ButtonState::Released) => {
-                    let move_vec = executable.move_vector();
-                    executable.set_move_command_coords(5, 5);
-                    executable.pc = Some(move_vec);
-                    executable.cont(&mut transform);
+        query
+            .iter_mut()
+            .for_each(
+                |(eid, mut executable, mut transform)| match (event.button, event.state) {
+                    (MouseButton::Right, ButtonState::Released) => {
+                        let move_vec = executable.move_vector();
+                        executable.set_move_command_coords(5, 5);
+                        executable.pc = Some(move_vec);
+                        executable.cont(&mut transform);
+                    }
+                    (MouseButton::Left, ButtonState::Released) => {
+                        commands.entity(eid).remove::<Selected>();
+                    }
+                    _ => {}
                 },
-                (MouseButton::Left, ButtonState::Released) => {
-                    commands.entity(eid).remove::<Selected>();
-                },
-                _ => {}
-            }
-        })
+            )
     }
 }
 
@@ -134,28 +138,16 @@ fn format_disassm_atom(atom: &DisassmAtom, is_current_instr: bool) -> WidgetText
     let mut out = match atom {
         DisassmAtom::Instr(instr) => {
             RichText::new(format!("    {:?}", instr)).color(Color32::WHITE)
-        },
-        DisassmAtom::Lit(val) => {
-            RichText::new(format!("    #{}", val)).color(Color32::CYAN)
-        },
-        DisassmAtom::Lit2(val) => {
-            RichText::new(format!("    #{}", val)).color(Color32::CYAN)
-        },
-        DisassmAtom::Jsi(val) => {
-            RichText::new(format!("    JSI {}", val)).color(Color32::ORANGE)
-        },
-        DisassmAtom::Jci(val) => {
-            RichText::new(format!("    JCI {}", val)).color(Color32::ORANGE)
-        },
-        DisassmAtom::Jmi(val) => {
-            RichText::new(format!("    JSI {}", val)).color(Color32::ORANGE)
-        },
+        }
+        DisassmAtom::Lit(val) => RichText::new(format!("    #{}", val)).color(Color32::CYAN),
+        DisassmAtom::Lit2(val) => RichText::new(format!("    #{}", val)).color(Color32::CYAN),
+        DisassmAtom::Jsi(val) => RichText::new(format!("    JSI {}", val)).color(Color32::ORANGE),
+        DisassmAtom::Jci(val) => RichText::new(format!("    JCI {}", val)).color(Color32::ORANGE),
+        DisassmAtom::Jmi(val) => RichText::new(format!("    JSI {}", val)).color(Color32::ORANGE),
         DisassmAtom::AbsoluteLabel(label) => {
             RichText::new(format!("@{}", label)).color(Color32::GREEN)
-        },
-        _ => {
-            RichText::new(format!("???"))
         }
+        _ => RichText::new(format!("???")),
     };
 
     if is_current_instr {
@@ -179,46 +171,46 @@ fn executable_debugging(
                     let cmd = executable.cpu.dev::<CommandPorts>();
                     ui.label(format!("Move Vector: {}", cmd.move_vector.get()));
                     ui.label(format!("Attack Vector: {}", cmd.attack_vector.get()));
-                   ui.label(format!("Create Vector: {}", cmd.create_vector.get()));
-                   ui.label(format!("x: {}", cmd.x.get()));
-                   ui.label(format!("y: {}", cmd.y.get()));
-                   ui.label(format!("Loop Vector: {}", cmd.loop_vector.get()));
-               });
+                    ui.label(format!("Create Vector: {}", cmd.create_vector.get()));
+                    ui.label(format!("x: {}", cmd.x.get()));
+                    ui.label(format!("y: {}", cmd.y.get()));
+                    ui.label(format!("Loop Vector: {}", cmd.loop_vector.get()));
+                });
 
-               egui::CollapsingHeader::new("Movement").show(ui, |ui| {
-                   let cmd = executable.cpu.dev::<MovementPorts>();
-                   ui.label(format!("Vector: {}", cmd.vector.get()));
-                   ui.label(format!("x: {}", cmd.x.get()));
-                   ui.label(format!("y: {}", cmd.y.get()));
-                   ui.label(format!("Dir: {}", cmd.dir));
-               });
-           });
+                egui::CollapsingHeader::new("Movement").show(ui, |ui| {
+                    let cmd = executable.cpu.dev::<MovementPorts>();
+                    ui.label(format!("Vector: {}", cmd.vector.get()));
+                    ui.label(format!("x: {}", cmd.x.get()));
+                    ui.label(format!("y: {}", cmd.y.get()));
+                    ui.label(format!("Dir: {}", cmd.dir));
+                });
+            });
 
-           egui::CollapsingHeader::new("Disassembly").show(ui, |ui| {
-               let disassm = disassm(&executable.program);
-               let mut instr_docs: Option<String> = None;
+            egui::CollapsingHeader::new("Disassembly").show(ui, |ui| {
+                let disassm = disassm(&executable.program);
+                let mut instr_docs: Option<String> = None;
 
-               ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                   egui::ScrollArea::vertical().show(ui, |ui| {
-                       ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                           let instr_height = Label::new("Your text").layout_in_ui(ui).1.size().y;
+                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+                            let instr_height = Label::new("Your text").layout_in_ui(ui).1.size().y;
 
-                           for span in disassm.spans {
-                               ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                                   if executable.has_breakpoint_at(&span.addr) {
-                                       let text = RichText::new(format!("  {:04X}   ", span.addr))
-                                           .color(Color32::BLACK)
-                                           .background_color(Color32::RED);
-                                       if ui.add(Label::new(text).sense(Sense::click())).clicked() {
-                                           executable.remove_breakpoint(&span.addr);
-                                       }
-                                   } else {
-                                       if ui.add(Label::new(format!("  {:04X}   ", span.addr)).sense(Sense::click())).clicked() {
-                                           executable.add_breakpoint(&span.addr);
-                                       }
-                                   }
+                            for span in disassm.spans {
+                                ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                                    if executable.has_breakpoint_at(&span.addr) {
+                                        let text = RichText::new(format!("  {:04X}   ", span.addr))
+                                            .color(Color32::BLACK)
+                                            .background_color(Color32::RED);
+                                        if ui.add(Label::new(text).sense(Sense::click())).clicked() {
+                                            executable.remove_breakpoint(&span.addr);
+                                        }
+                                    } else {
+                                        if ui.add(Label::new(format!("  {:04X}   ", span.addr)).sense(Sense::click())).clicked() {
+                                            executable.add_breakpoint(&span.addr);
+                                        }
+                                    }
 
-                                   let mut is_current_instr = matches!(executable.pc, Some(pc) if pc == span.addr);
+                                    let mut is_current_instr = matches!(executable.pc, Some(pc) if pc == span.addr);
 
                                    if ui.add(Label::new(format_disassm_atom(&span.atom, is_current_instr)).sense(Sense::hover())).hovered() {
                                        instr_docs = Some("This is an explanation of things".to_string());
@@ -284,10 +276,11 @@ fn executable_debugging(
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     let texture = asset_server.load("../assets/spritesheets/purple.png");
-    let layout = TextureAtlasLayout::from_grid(UVec2::splat(7), 50, 30, Some(UVec2::splat(1)), None);
+    let layout =
+        TextureAtlasLayout::from_grid(UVec2::splat(7), 50, 30, Some(UVec2::splat(1)), None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
 
     commands.spawn((
@@ -301,7 +294,6 @@ fn setup(
         Transform::from_scale(Vec3::splat(6.0)),
     ));
 }
-
 
 pub struct HelloPlugin;
 
@@ -318,7 +310,8 @@ impl Plugin for HelloPlugin {
                 gizmos,
                 selection_system,
                 setup,
-            ).chain()
+            )
+                .chain(),
         );
     }
 }
@@ -340,17 +333,23 @@ fn configure_visuals_system(mut contexts: EguiContexts) {
         "IBM BIOS".to_owned(),
         std::sync::Arc::new(
             // .ttf and .otf supported
-            FontData::from_static(include_bytes!("../assets/AcPlus_IBM_BIOS.ttf"))
-        )
+            FontData::from_static(include_bytes!("../assets/AcPlus_IBM_BIOS.ttf")),
+        ),
     );
 
     // Put my font first (highest priority):
-    fonts.families.get_mut(&FontFamily::Proportional).unwrap()
-                                                     .insert(0, "IBM BIOS".to_owned());
+    fonts
+        .families
+        .get_mut(&FontFamily::Proportional)
+        .unwrap()
+        .insert(0, "IBM BIOS".to_owned());
 
     // Put my font as last fallback for monospace:
-    fonts.families.get_mut(&FontFamily::Monospace).unwrap()
-                                                  .insert(0, "IBM BIOS".to_owned());
+    fonts
+        .families
+        .get_mut(&FontFamily::Monospace)
+        .unwrap()
+        .insert(0, "IBM BIOS".to_owned());
     contexts.ctx_mut().set_fonts(fonts);
 }
 

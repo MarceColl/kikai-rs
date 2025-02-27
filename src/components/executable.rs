@@ -1,9 +1,9 @@
-use std::path::Path;
-use bevy::prelude::*;
-use raven_uxn::{Uxn, UxnRam, Backend};
-use crate::devices::{UnitIO, CommandPorts, MovementPorts};
+use crate::devices::{CommandPorts, MovementPorts, UnitIO};
 use crate::tools::assembler::{assemble, Program};
+use bevy::prelude::*;
+use raven_uxn::{Backend, Uxn, UxnRam};
 use std::collections::BTreeSet;
+use std::path::Path;
 
 pub struct CpuLimits {
     num_cycles: u32,
@@ -86,8 +86,12 @@ impl Executable {
 
     pub fn cont(&mut self, transform: &mut Transform) {
         while let Some(pc) = self.pc {
-            if self.has_breakpoint_at(&pc) { break; }
-            if self.cycles_left == 0 { break; }
+            if self.has_breakpoint_at(&pc) {
+                break;
+            }
+            if self.cycles_left == 0 {
+                break;
+            }
 
             let mut device = self.device.arm(transform);
             self.pc = self.cpu.step(&mut device, pc);

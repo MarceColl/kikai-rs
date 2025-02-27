@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::math::bounding::Aabb2d;
+use bevy::prelude::*;
 
 #[derive(Component)]
 pub struct Collider {

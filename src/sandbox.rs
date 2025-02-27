@@ -1,27 +1,24 @@
-use std::sync::Arc;
-use regex::Regex;
-use bevy::prelude::*;
 use crate::egui::{
-    text::{LayoutJob, TextFormat, Fonts},
     style::{WidgetVisuals, Widgets},
-    Color32, Label, Sense, RichText, vec2, WidgetText,
-    FontDefinitions, FontData, FontFamily, FontId, Pos2, Stroke,
-    ComboBox, Window,
+    text::{Fonts, LayoutJob, TextFormat},
+    vec2, Color32, ComboBox, FontData, FontDefinitions, FontFamily, FontId, Label, Pos2, RichText,
+    Sense, Stroke, WidgetText, Window,
 };
+use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
+use regex::Regex;
+use std::sync::Arc;
 
-use crate::tools::assembler::assemble;
 use crate::bundles::UnitBundle;
-use crate::unit_spawn::SpawnUnitRequest;
-use crate::unit_repo::{UnitRepository, UnitDefinition};
-use crate::executable::CodeReloadEvent;
 use crate::components::Executable;
+use crate::executable::CodeReloadEvent;
+use crate::tools::assembler::assemble;
+use crate::unit_repo::{UnitDefinition, UnitRepository};
+use crate::unit_spawn::SpawnUnitRequest;
 
 enum SandboxUIMode {
     MainMenu,
-    CreateUnit {
-        unit_name: String,
-    },
+    CreateUnit { unit_name: String },
 }
 
 #[derive(Resource)]
@@ -70,16 +67,25 @@ fn draw_sandbox_ui(
 
                 let mut selected_unit = sandbox_state.selected_unit.clone();
                 egui::ComboBox::from_label("Unit Type")
-                    .selected_text(sandbox_state.selected_unit.as_ref().map_or_else(|| "None".to_string(), |s| s.name.clone()))
+                    .selected_text(
+                        sandbox_state
+                            .selected_unit
+                            .as_ref()
+                            .map_or_else(|| "None".to_string(), |s| s.name.clone()),
+                    )
                     .show_ui(ui, |ui| {
                         for ud in &sandbox_state.units {
                             ui.selectable_value(&mut selected_unit, Some(ud.clone()), &ud.name);
                         }
-                    }
-                );
+                    });
 
                 if sandbox_state.selected_unit != selected_unit {
-                    sandbox_state.current_code = selected_unit.as_ref().unwrap().code.clone().unwrap_or_else(|| String::new());
+                    sandbox_state.current_code = selected_unit
+                        .as_ref()
+                        .unwrap()
+                        .code
+                        .clone()
+                        .unwrap_or_else(|| String::new());
                     sandbox_state.selected_unit = selected_unit;
                 }
 
@@ -91,12 +97,18 @@ fn draw_sandbox_ui(
                 }
 
                 if sandbox_state.editor_open {
-                    if ui.button("Close Code Editor").clicked() { sandbox_state.editor_open = false; }
+                    if ui.button("Close Code Editor").clicked() {
+                        sandbox_state.editor_open = false;
+                    }
                 } else {
-                    if ui.button("Open Code Editor").clicked() { sandbox_state.editor_open = true; }
+                    if ui.button("Open Code Editor").clicked() {
+                        sandbox_state.editor_open = true;
+                    }
                 }
-            },
-            SandboxUIMode::CreateUnit { unit_name: ref mut unit_name } => {
+            }
+            SandboxUIMode::CreateUnit {
+                unit_name: ref mut unit_name,
+            } => {
                 let name_to_create = unit_name.clone();
                 ui.add(egui::TextEdit::singleline(unit_name));
 
@@ -111,7 +123,7 @@ fn draw_sandbox_ui(
                         sandbox_state.mode = SandboxUIMode::MainMenu;
                     }
                 });
-            },
+            }
         };
     });
 }
@@ -121,9 +133,7 @@ fn draw_sandbox_ui(
 
 fn tokenize(input: &str) -> Vec<&str> {
     let re = Regex::new(r"(\s+|\S+)").unwrap();
-    re.find_iter(input)
-        .map(|m| m.as_str())
-        .collect()
+    re.find_iter(input).map(|m| m.as_str()).collect()
 }
 
 fn color_for_tok(tok: &str) -> Color32 {
@@ -159,7 +169,7 @@ fn draw_editor_window(
                 TextFormat {
                     color: color_for_tok(tok),
                     ..Default::default()
-                }
+                },
             );
         }
 
@@ -209,10 +219,7 @@ fn draw_editor_window(
     }
 }
 
-fn initialize_sandbox_state(
-    mut sandbox_state: ResMut<SandboxState>,
-    repo: Res<UnitRepository>,
-) {
+fn initialize_sandbox_state(mut sandbox_state: ResMut<SandboxState>, repo: Res<UnitRepository>) {
     sandbox_state.refresh_units(&repo);
 }
 
@@ -220,12 +227,8 @@ pub struct SandboxPlugin;
 
 impl Plugin for SandboxPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource::<SandboxState>(SandboxState::default())
+        app.insert_resource::<SandboxState>(SandboxState::default())
             .add_systems(Startup, initialize_sandbox_state)
-            .add_systems(Update, (
-                draw_sandbox_ui,
-                draw_editor_window,
-            ));
+            .add_systems(Update, (draw_sandbox_ui, draw_editor_window));
     }
 }

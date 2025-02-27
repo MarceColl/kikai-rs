@@ -6,13 +6,14 @@ use zerocopy_derive::{FromBytes, Immutable, IntoBytes, KnownLayout};
 #[derive(IntoBytes, FromBytes, KnownLayout, Immutable)]
 #[repr(C)]
 pub struct MovementPorts {
-    // |10 @Movement &vector $2 &x $2 &y $2 &dir $1
+    // |10 @Movement &vector $2 &x $2 &y $2 &tx $2 &ty $2
     pub vector: U16<BigEndian>,
     pub x: U16<BigEndian>,
     pub y: U16<BigEndian>,
-    pub dir: u8,
-    _p1: u8,
-    _p2: u64,
+    pub tx: U16<BigEndian>,
+    pub ty: U16<BigEndian>,
+    _p1: u16,
+    _p2: u32,
 }
 
 impl MovementPorts {
@@ -38,17 +39,5 @@ impl Movement {
         Movement {}
     }
 
-    pub fn deo(&mut self, vm: &mut Uxn, target: u8, transform: &mut Transform) {
-        let d = vm.dev::<MovementPorts>();
-        match d.dir % 5 {
-            0 => {}
-            1 => transform.translation.x += 1.,
-            2 => transform.translation.y -= 1.,
-            3 => transform.translation.x -= 1.,
-            4 => transform.translation.y += 1.,
-            _ => {
-                unreachable!();
-            }
-        };
-    }
+    pub fn deo(&mut self, vm: &mut Uxn, target: u8, transform: &mut Transform) {}
 }

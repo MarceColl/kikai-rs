@@ -1,9 +1,11 @@
-use crate::devices::{CommandPorts, MovementPorts, UnitIO};
+use crate::devices::{CommandPorts, MovementPorts, UnitIO, RadioPorts};
 use crate::tools::assembler::{assemble, Program};
 use bevy::prelude::*;
 use raven_uxn::{Backend, Uxn, UxnRam};
 use std::collections::BTreeSet;
 use std::path::Path;
+
+use crate::radio::RadioMessage;
 
 pub struct CpuLimits {
     num_cycles: u32,
@@ -59,9 +61,11 @@ impl Executable {
         }
     }
 
-    pub fn load_program(&mut self, program: &Program) {
+    pub fn load_program(&mut self, program: &Program, transform: &mut Transform) {
         self.cpu.reset(&program.rom);
         self.program = program.clone();
+        let mut dev = self.device.arm(transform);
+        self.cpu.run(&mut dev, 0x100);
     }
 
     pub fn add_breakpoint(&mut self, addr: &u16) {
@@ -84,7 +88,9 @@ impl Executable {
         }
     }
 
-    pub fn cont(&mut self, transform: &mut Transform) {
+    pub fn cont(&mut self, transform: &mut Transform) -> Option<RadioMessage> {
+        let mut radio_message = None;
+
         while let Some(pc) = self.pc {
             if self.has_breakpoint_at(&pc) {
                 break;
@@ -95,7 +101,13 @@ impl Executable {
 
             let mut device = self.device.arm(transform);
             self.pc = self.cpu.step(&mut device, pc);
+
+            if let Some(rm) = device.radio_message {
+                radio_message = Some(rm);
+            }
         }
+
+        radio_message
     }
 
     pub fn start(&mut self) {
@@ -116,6 +128,28 @@ impl Executable {
         let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<CommandPorts>();
         v.move_vector.get()
+    }
+
+    pub fn radio_message_vector(&mut self) -> u16 {
+        let mut t = self.arbitrary_transform();
+        let device = self.device.arm(&mut t);
+        let v = self.cpu.dev::<RadioPorts>();
+        v.vector.get()
+    }
+
+    pub fn radio_frequency(&mut self) -> u8 {
+        let mut t = self.arbitrary_transform();
+        let device = self.device.arm(&mut t);
+        let v = self.cpu.dev::<RadioPorts>();
+        v.freq
+    }
+
+    pub fn set_radio_packets(&mut self, packets: &[u16; 2]) {
+        let mut t = self.arbitrary_transform();
+        let device = self.device.arm(&mut t);
+        let v = self.cpu.dev_mut::<RadioPorts>();
+        v.packeth.set(packets[0]);
+        v.packetl.set(packets[1]);
     }
 
     pub fn set_move_command_coords(&mut self, x: u16, y: u16) {

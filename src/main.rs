@@ -112,33 +112,43 @@ fn command_system(
     mut query: Query<(Entity, &mut Executable, &mut Transform), With<Selected>>,
     mut mouse_events: EventReader<MouseButtonInput>,
     mut radio_messages: EventWriter<RadioMessage>,
+    q_window: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut commands: Commands,
 ) {
     if context.ctx_mut().wants_pointer_input() {
         return;
     }
 
-    for event in mouse_events.read() {
-        query
-            .iter_mut()
-            .for_each(
-                |(eid, mut executable, mut transform)| match (event.button, event.state) {
-                    (MouseButton::Right, ButtonState::Released) => {
-                        let move_vec = executable.move_vector();
-                        executable.set_move_command_coords(5, 5);
-                        executable.pc = Some(move_vec);
-                        if let Some(mut rm) = executable.cont(&mut transform) {
-                            rm.origin_entity_id = Some(eid);
-                            radio_messages.send(rm);
-                            println!("SENT RADIO MESSAGE");
+    let window = q_window.single();
+    let (camera, global_transform) = q_camera.single();
+
+    if let Some(Ok(world_position)) = window
+        .cursor_position()
+        .map(|cursor| camera.viewport_to_world_2d(global_transform, cursor))
+    {
+        for event in mouse_events.read() {
+            query
+                .iter_mut()
+                .for_each(
+                    |(eid, mut executable, mut transform)| match (event.button, event.state) {
+                        (MouseButton::Right, ButtonState::Released) => {
+                            let move_vec = executable.move_vector();
+                            println!("{:?}", world_position);
+                            executable.set_move_command_coords(world_position.x as u16, world_position.y as u16);
+                            executable.pc = Some(move_vec);
+                            if let Some(mut rm) = executable.cont(&mut transform) {
+                                rm.origin_entity_id = Some(eid);
+                                radio_messages.send(rm);
+                            }
                         }
-                    }
-                    (MouseButton::Left, ButtonState::Released) => {
-                        commands.entity(eid).remove::<Selected>();
-                    }
-                    _ => {}
-                },
-            )
+                        (MouseButton::Left, ButtonState::Released) => {
+                            commands.entity(eid).remove::<Selected>();
+                        }
+                        _ => {}
+                    },
+                )
+        }
     }
 }
 
@@ -190,7 +200,8 @@ fn executable_debugging(
                     ui.label(format!("Vector: {:04X}", cmd.vector.get()));
                     ui.label(format!("x: {:04X}", cmd.x.get()));
                     ui.label(format!("y: {:04X}", cmd.y.get()));
-                    ui.label(format!("Dir: {:02X}", cmd.dir));
+                    ui.label(format!("tx: {:04X}", cmd.tx.get()));
+                    ui.label(format!("ty: {:04X}", cmd.ty.get()));
                 });
 
                 egui::CollapsingHeader::new("Radio").show(ui, |ui| {

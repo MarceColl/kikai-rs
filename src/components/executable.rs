@@ -80,6 +80,7 @@ impl Executable {
         self.breakpoints.remove(addr);
     }
 
+
     pub fn step(&mut self, transform: &mut Transform) {
         let mut device = self.device.arm(transform);
         if let Some(pc) = self.pc {
@@ -128,6 +129,21 @@ impl Executable {
         let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<CommandPorts>();
         v.move_vector.get()
+    }
+
+    pub fn target_pos(&mut self) -> Vec3 {
+        let mut t = self.arbitrary_transform();
+        let device = self.device.arm(&mut t);
+        let m = self.cpu.dev::<MovementPorts>();
+        Vec3::new(m.tx.get() as f32, m.ty.get() as f32, 0.0)
+    }
+
+    pub fn set_current_pos(&mut self, pos: Vec3) {
+        let mut t = self.arbitrary_transform();
+        let device = self.device.arm(&mut t);
+        let mut m = self.cpu.dev_mut::<MovementPorts>();
+        m.x.set(pos.x as u16);
+        m.y.set(pos.y as u16);
     }
 
     pub fn radio_message_vector(&mut self) -> u16 {

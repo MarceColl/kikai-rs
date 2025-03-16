@@ -16,6 +16,20 @@ fn update_executables(
 ) {
     for (entity, mut executable, mut transform) in &mut query {
         executable.cycles_left = 1000;
+
+        let pos = transform.translation;
+        let target_pos = executable.target_pos();
+        let dir = (target_pos - pos).normalize();
+
+        if transform.translation.distance(target_pos) < 10.0 {
+            transform.translation = target_pos;
+        } else {
+            transform.translation += dir * 10.0;
+        }
+
+        executable.set_current_pos(transform.translation);
+
+
         if let None = executable.pc {
             let loop_vec = executable.loop_vector();
             executable.pc = Some(loop_vec);

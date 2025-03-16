@@ -5,7 +5,7 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Unit {}
 
-const UNIT_SIZE: Vec3 = Vec3::new(5., 5., 1.);
+const UNIT_SIZE: Vec3 = Vec3::new(2., 2., 1.);
 
 #[derive(Bundle)]
 pub struct UnitBundle {

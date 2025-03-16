@@ -1,0 +1,153 @@
+name: Build, Test and Deploy
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  ITCHIO_USERNAME: marcecoll
+  ITCHIO_GAME: kikai
+  BINARY_NAME: kikai-rs
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev pkg-config libudev-dev
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release
+
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows
+            target: x86_64-pc-windows-gnu
+            suffix: .exe
+            platform: windows
+          - os: macos
+            target: aarch64-apple-darwin
+            suffix: ""
+            platform: osx
+          - os: linux
+            target: x86_64-unknown-linux-gnu
+            suffix: ""
+            platform: linux
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Add Windows dependencies
+        if: matrix.os == 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build for ${{ matrix.os }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Create release directory
+        run: |
+          mkdir -p release/${{ matrix.os }}
+          cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${{ matrix.suffix }} release/${{ matrix.os }}/
+          cp -r assets/* release/${{ matrix.os }}/ || true  # Copy assets if they exist
+
+      - name: Create zip archive
+        run: |
+          cd release
+          zip -r ${{ env.BINARY_NAME }}-${{ matrix.os }}.zip ${{ matrix.os }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}-${{ matrix.os }}
+          path: release/${{ env.BINARY_NAME }}-${{ matrix.os }}.zip
+
+  deploy:
+    name: Deploy to itch.io
+    needs:
+      - build
+      - test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Install Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Login to itch.io
+        run: ./butler login
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+
+      - name: Push Windows build
+        run: |
+          ./butler push artifacts/${{ env.BINARY_NAME }}-windows/${{ env.BINARY_NAME }}-windows.zip ${{ env.ITCHIO_USERNAME }}/${{ env.ITCHIO_GAME }}:windows --userversion ${GITHUB_REF#refs/tags/}
+
+      - name: Push macOS build
+        run: |
+          ./butler push artifacts/${{ env.BINARY_NAME }}-macos/${{ env.BINARY_NAME }}-macos.zip ${{ env.ITCHIO_USERNAME }}/${{ env.ITCHIO_GAME }}:osx-arm64 --userversion ${GITHUB_REF#refs/tags/}
+
+      - name: Push Linux build
+        run: |
+          ./butler push artifacts/${{ env.BINARY_NAME }}-linux/${{ env.BINARY_NAME }}-linux.zip ${{ env.ITCHIO_USERNAME }}/${{ env.ITCHIO_GAME }}:linux --userversion ${GITHUB_REF#refs/tags/}

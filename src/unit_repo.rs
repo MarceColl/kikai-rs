@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rusqlite::{params, Connection, OpenFlags};
+use rusqlite::{Connection, OpenFlags};
 use rusqlite_migration::{Migrations, M};
 
 pub struct UnitRepoPlugin;
@@ -31,7 +31,7 @@ impl UnitRepository {
     }
 
     pub fn get_units(&self) -> Vec<UnitDefinition> {
-        let mut conn = self.pool.pop().unwrap();
+        let conn = self.pool.pop().unwrap();
         let mut stmt = conn.prepare(
             "SELECT u.unit_id, u.name, uv.code FROM units AS u LEFT JOIN unit_versions AS uv ON (u.current_version_id = uv.version_id)"
         ).unwrap();
@@ -56,13 +56,13 @@ impl UnitRepository {
     }
 
     pub fn new_unit_type(&self, name: String) {
-        let mut conn = self.pool.pop().unwrap();
+        let conn = self.pool.pop().unwrap();
         conn.execute("INSERT INTO units (name) VALUES (?1)", [name])
             .unwrap();
     }
 
     pub fn update_code_for_unit(&self, unit_id: u64, new_code: String) {
-        let mut conn = self.pool.pop().unwrap();
+        let conn = self.pool.pop().unwrap();
         let version_id: u64 = conn
             .query_row(
                 "INSERT INTO unit_versions (unit_id, code) VALUES (?1, ?2) RETURNING version_id",
@@ -75,6 +75,16 @@ impl UnitRepository {
             [version_id, unit_id],
         )
         .unwrap();
+    }
+
+    pub fn get_latest_code_for_unit(&self, unit_id: u64) -> Option<String> {
+        let conn = self.pool.pop().unwrap();
+        conn.query_row(
+            "SELECT code FROM unit_versions WHERE version_id =
+              (SELECT MAX(version_id) FROM unit_versions WHERE unit_id = ?1)",
+            (unit_id,),
+            |row| row.get(0)
+        ).unwrap()
     }
 }
 
@@ -104,7 +114,7 @@ fn run_migrations(conn: &mut Connection) {
     println!("MIGRATIONS RAN");
 }
 
-fn setup_database(mut unit_repository: ResMut<UnitRepository>) {
+fn setup_database(unit_repository: ResMut<UnitRepository>) {
     let mut conn = unit_repository.get_connection().unwrap();
     run_migrations(&mut conn);
 }

@@ -1,4 +1,4 @@
-use crate::devices::{CommandPorts, MovementPorts, UnitIO, RadioPorts};
+use crate::devices::{CommandPorts, MovementPorts, RadioPorts, UnitIO};
 use crate::tools::assembler::{assemble, Program};
 use bevy::prelude::*;
 use raven_uxn::{Backend, Uxn, UxnRam};
@@ -27,7 +27,7 @@ pub struct Executable {
 
 impl Executable {
     pub fn from_file(unit_id: u64, path: impl AsRef<Path>) -> Self {
-        let src = std::fs::read_to_string("basic.tal").unwrap();
+        let src = std::fs::read_to_string(path).unwrap();
         let program = assemble(src).unwrap();
         Executable::from_program(unit_id, &program)
     }
@@ -62,7 +62,7 @@ impl Executable {
     }
 
     pub fn load_program(&mut self, program: &Program, transform: &mut Transform) {
-        self.cpu.reset(&program.rom);
+        let _ = self.cpu.reset(&program.rom);
         self.program = program.clone();
         let mut dev = self.device.arm(transform);
         self.cpu.run(&mut dev, 0x100);
@@ -79,7 +79,6 @@ impl Executable {
     pub fn remove_breakpoint(&mut self, addr: &u16) {
         self.breakpoints.remove(addr);
     }
-
 
     pub fn step(&mut self, transform: &mut Transform) {
         let mut device = self.device.arm(transform);
@@ -125,60 +124,44 @@ impl Executable {
     }
 
     pub fn move_vector(&mut self) -> u16 {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<CommandPorts>();
         v.move_vector.get()
     }
 
     pub fn target_pos(&mut self) -> Vec3 {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let m = self.cpu.dev::<MovementPorts>();
         Vec3::new(m.tx.get() as f32, m.ty.get() as f32, 0.0)
     }
 
     pub fn set_current_pos(&mut self, pos: Vec3) {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
-        let mut m = self.cpu.dev_mut::<MovementPorts>();
+        let m = self.cpu.dev_mut::<MovementPorts>();
         m.x.set(pos.x as u16);
         m.y.set(pos.y as u16);
     }
 
     pub fn radio_message_vector(&mut self) -> u16 {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<RadioPorts>();
         v.vector.get()
     }
 
     pub fn radio_frequency(&mut self) -> u8 {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<RadioPorts>();
         v.freq
     }
 
     pub fn set_radio_packets(&mut self, packets: &[u16; 2]) {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let v = self.cpu.dev_mut::<RadioPorts>();
         v.packeth.set(packets[0]);
         v.packetl.set(packets[1]);
     }
 
     pub fn set_move_command_coords(&mut self, x: u16, y: u16) {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let v = self.cpu.dev_mut::<MovementPorts>();
         v.x.set(x);
         v.y.set(y);
     }
 
     pub fn loop_vector(&mut self) -> u16 {
-        let mut t = self.arbitrary_transform();
-        let device = self.device.arm(&mut t);
         let v = self.cpu.dev::<CommandPorts>();
         v.loop_vector.get()
     }

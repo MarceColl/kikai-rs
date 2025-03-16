@@ -49,7 +49,7 @@ impl Device for ArmedUnitIO<'_> {
             MovementPorts::BASE => self.unit_io.movement.deo(vm, target, self.transform),
             RadioPorts::BASE => {
                 self.radio_message = self.unit_io.radio.deo(vm, target);
-            },
+            }
             _ => {
                 println!("UNIMPLEMENTED DEVICE")
             }
@@ -57,7 +57,7 @@ impl Device for ArmedUnitIO<'_> {
         true
     }
 
-    fn dei(&mut self, vm: &mut Uxn, target: u8) {
+    fn dei(&mut self, _vm: &mut Uxn, target: u8) {
         println!("DEI {}", target);
     }
 }

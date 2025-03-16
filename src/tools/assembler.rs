@@ -1,4 +1,3 @@
-use crate::egui::{Color32, RichText, WidgetText};
 use std::collections::BTreeMap;
 
 #[repr(u8)]
@@ -308,11 +307,6 @@ pub struct Span {
     src_string: String,
     start: usize,
     end: usize,
-}
-
-struct Parser {
-    cursor: usize,
-    curr_addr: u16,
 }
 
 struct Lexer {
@@ -715,7 +709,6 @@ pub struct Program {
 pub fn assemble(src: String) -> Result<Program, String> {
     let mut lexer = Lexer::new(src);
 
-    let cursor: usize = 0;
     let mut curr_addr: u16 = 0;
     let mut in_comment = false;
 
@@ -787,7 +780,9 @@ pub fn assemble(src: String) -> Result<Program, String> {
             Atom::AbsoluteLabel(label) => {
                 current_scope = label.to_string();
             }
-            Atom::RelativeLabel(label) => {}
+            Atom::RelativeLabel(_label) => {
+                // TODO(Marce)
+            }
             Atom::LiteralAbsoluteAddressing(label) => {
                 program.rom.push(Instr::LIT2.into());
                 let bytes = program.symbol_table[label].to_be_bytes();

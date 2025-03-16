@@ -7,33 +7,28 @@ use bevy::{
 };
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use egui::{
-    style::{WidgetVisuals, Widgets},
-    vec2, Color32, FontData, FontDefinitions, FontFamily, Label, Pos2, RichText, Sense, Stroke,
-    WidgetText,
+    style::Widgets, vec2, Color32, FontData, FontDefinitions, FontFamily, Label, RichText, Sense,
+    Stroke, WidgetText,
 };
-use rusqlite::{params, Connection, OpenFlags};
-use rusqlite_migration::{Migrations, M};
 
 mod bundles;
 mod components;
 mod devices;
 mod executable;
+mod radio;
 mod sandbox;
 mod tools;
 mod unit_repo;
 mod unit_spawn;
-mod radio;
 
-
-use crate::bundles::UnitBundle;
 use crate::components::{Executable, Selectable, Selected};
 use crate::devices::{CommandPorts, MovementPorts, RadioPorts};
 use crate::executable::ExecutablePlugin;
+use crate::radio::{RadioMessage, RadioPlugin};
 use crate::sandbox::SandboxPlugin;
-use crate::tools::assembler::{disassm, Disassm, DisassmAtom};
+use crate::tools::assembler::{disassm, DisassmAtom};
 use crate::unit_repo::UnitRepoPlugin;
 use crate::unit_spawn::UnitSpawnPlugin;
-use crate::radio::{RadioPlugin, RadioMessage};
 
 const BACKGROUND_COLOR: Color = Color::srgb(0., 0., 0.);
 
@@ -43,13 +38,8 @@ struct MainCamera;
 #[derive(Resource)]
 struct GreetTimer(Timer);
 
-fn add_initial_unit(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
-    commands.spawn((Camera2dBundle::default(), MainCamera));
+fn add_initial_unit(mut commands: Commands) {
+    commands.spawn((Camera2d::default(), MainCamera));
 }
 
 fn selection_system(
@@ -72,8 +62,8 @@ fn selection_system(
         .map(|cursor| camera.viewport_to_world_2d(global_transform, cursor))
     {
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
-        for event in mouse_events.read() {
-            query.iter().for_each(|(eid, selectable, transform)| {
+        for _event in mouse_events.read() {
+            query.iter().for_each(|(eid, _selectable, transform)| {
                 let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() / 2.);
 
                 if aabb.contains(&wp_aabb) {
@@ -98,7 +88,7 @@ fn gizmos(
         .map(|cursor| camera.viewport_to_world_2d(global_transform, cursor))
     {
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
-        query.iter().for_each(|(eid, transform)| {
+        query.iter().for_each(|(_eid, transform)| {
             let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() / 2.);
 
             let color = if aabb.contains(&wp_aabb) { RED } else { YELLOW };
@@ -130,12 +120,15 @@ fn command_system(
         for event in mouse_events.read() {
             query
                 .iter_mut()
-                .for_each(
-                    |(eid, mut executable, mut transform)| match (event.button, event.state) {
+                .for_each(|(eid, mut executable, mut transform)| {
+                    match (event.button, event.state) {
                         (MouseButton::Right, ButtonState::Released) => {
                             let move_vec = executable.move_vector();
                             println!("{:?}", world_position);
-                            executable.set_move_command_coords(world_position.x as u16, world_position.y as u16);
+                            executable.set_move_command_coords(
+                                world_position.x as u16,
+                                world_position.y as u16,
+                            );
                             executable.pc = Some(move_vec);
                             if let Some(mut rm) = executable.cont(&mut transform) {
                                 rm.origin_entity_id = Some(eid);
@@ -146,8 +139,8 @@ fn command_system(
                             commands.entity(eid).remove::<Selected>();
                         }
                         _ => {}
-                    },
-                )
+                    }
+                })
         }
     }
 }
@@ -179,9 +172,7 @@ fn executable_debugging(
     mut context: EguiContexts,
     mut executables: Query<(Entity, &mut Executable, &mut Transform), With<Selected>>,
 ) {
-    executables.iter_mut().for_each(|(eid, mut executable, mut transform)| {
-        let device = executable.device.arm(&mut transform);
-
+    executables.iter_mut().for_each(|(_eid, mut executable, mut transform)| {
         egui::Window::new("Unit Inspector".to_string()).scroll(true).show(context.ctx_mut(), |ui| {
             ui.label(format!("Unit Type ID: {}", executable.unit_id));
             egui::CollapsingHeader::new("Devices").show(ui, |ui| {
@@ -240,7 +231,7 @@ fn executable_debugging(
                                         }
                                     }
 
-                                    let mut is_current_instr = matches!(executable.pc, Some(pc) if pc == span.addr);
+                                    let is_current_instr = matches!(executable.pc, Some(pc) if pc == span.addr);
 
                                    if ui.add(Label::new(format_disassm_atom(&span.atom, is_current_instr)).sense(Sense::hover())).hovered() {
                                        instr_docs = Some("This is an explanation of things".to_string());

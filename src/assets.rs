@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use rand::prelude::IndexedRandom;
 
 #[derive(Deserialize,Debug)]
 pub struct SeiSprite {
@@ -92,20 +93,59 @@ fn load_assets(
         let asset = Asset { mappings: mappings.clone(), layout: texture_atlas_layout.clone(), image: img_handle.clone() };
         asset_lib.assets.insert(name.clone(), asset);
 
-        // commands.spawn((
-        //     Sprite::from_atlas_image(
-        //         img_handle,
-        //         TextureAtlas {
-        //             layout: texture_atlas_layout,
-        //             index: mappings["fulldots"],
-        //         },
-        //     ),
-        //     Transform {
-        //         translation: Vec3::new(0., 0., -1.),
-        //         scale: Vec3::splat(2.0),
-        //         ..default()
-        //     },
-        // ));
+    }
+
+
+    let asset = &asset_lib.assets["roguelike"];
+    let lay = asset.layout.clone();
+    let img = asset.image.clone();
+    let idx = asset.mappings["bg-space-3"];
+
+    let assets_idx = vec![
+        asset.mappings["space-mushroom-1"],
+        asset.mappings["space-mushroom-2"],
+        asset.mappings["space-plant-1"],
+        asset.mappings["space-plant-2"],
+        asset.mappings["space-plant-3"],
+    ];
+    let mut rng = rand::rng();
+
+    for i in 0..100 {
+        for j in 0..100 {
+            commands.spawn((
+                Sprite::from_atlas_image(
+                    img.clone(),
+                    TextureAtlas {
+                        layout: lay.clone(),
+                        index: idx,
+                    },
+                ),
+                Transform {
+                    translation: Vec3::new((i * 31) as f32, (j * 31) as f32, -1.),
+                    scale: Vec3::splat(2.0),
+                    ..default()
+                },
+            ));
+
+            if rand::random_range(0..50) == 0 {
+                let idx = assets_idx.choose(&mut rng).unwrap();
+
+                commands.spawn((
+                    Sprite::from_atlas_image(
+                        img.clone(),
+                        TextureAtlas {
+                            layout: lay.clone(),
+                            index: *idx,
+                        },
+                    ),
+                    Transform {
+                        translation: Vec3::new((i * 31) as f32, (j * 31) as f32, -1.),
+                        scale: Vec3::splat(2.0),
+                        ..default()
+                    },
+                ));
+            }
+        }
     }
 
     println!("{:?}", asset_lib);

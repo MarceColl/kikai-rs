@@ -70,7 +70,7 @@ fn selection_system(
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
         for _event in mouse_events.read() {
             query.iter().for_each(|(eid, _selectable, transform)| {
-                let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() * 3.5);
+                let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() * 9.);
 
                 if aabb.contains(&wp_aabb) {
                     commands.entity(eid).insert(Selected);
@@ -95,7 +95,7 @@ fn gizmos(
     {
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
         query.iter().for_each(|(_eid, transform)| {
-            let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() * 3.5);
+            let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() * 9.);
 
             let color = if aabb.contains(&wp_aabb) { RED } else { YELLOW };
             gizmos.rect_2d(aabb.center().xy(), aabb.half_size().xy() * 2., color);

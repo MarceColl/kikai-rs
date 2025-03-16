@@ -41,7 +41,11 @@ struct MainCamera;
 struct GreetTimer(Timer);
 
 fn add_initial_unit(mut commands: Commands) {
-    commands.spawn((Camera2d::default(), MainCamera));
+    commands.spawn((
+        Camera2d::default(),
+        MainCamera,
+        Msaa::Off,
+    ));
 }
 
 fn selection_system(
@@ -402,7 +406,7 @@ struct Unit {}
 fn main() -> Result<()> {
     App::new()
         .add_plugins(UnitRepoPlugin)
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(HelloPlugin)
         .add_plugins(EguiPlugin)
         .add_plugins(UnitSpawnPlugin)

@@ -21,13 +21,13 @@ fn unit_spawner(
     for request in spawn_events.read() {
         let program_code = repo.get_latest_code_for_unit(request.unit_id).unwrap();
         let program = assemble(program_code).unwrap();
-        let asset = &asset_lib.assets["purple"];
+        let asset = &asset_lib.assets["roguelike"];
 
         let sprite = Sprite::from_atlas_image(
             asset.image.clone(),
             TextureAtlas {
                 layout: asset.layout.clone(),
-                index: asset.mappings["fulldots"]
+                index: asset.mappings["medusa"]
             }
         );
 

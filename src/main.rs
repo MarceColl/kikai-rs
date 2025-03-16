@@ -20,6 +20,7 @@ mod sandbox;
 mod tools;
 mod unit_repo;
 mod unit_spawn;
+mod assets;
 
 use crate::components::{Executable, Selectable, Selected};
 use crate::devices::{CommandPorts, MovementPorts, RadioPorts};
@@ -29,6 +30,7 @@ use crate::sandbox::SandboxPlugin;
 use crate::tools::assembler::{disassm, DisassmAtom};
 use crate::unit_repo::UnitRepoPlugin;
 use crate::unit_spawn::UnitSpawnPlugin;
+use crate::assets::AssetsPlugin;
 
 const BACKGROUND_COLOR: Color = Color::srgb(0., 0., 0.);
 
@@ -64,7 +66,7 @@ fn selection_system(
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
         for _event in mouse_events.read() {
             query.iter().for_each(|(eid, _selectable, transform)| {
-                let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() / 2.);
+                let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() * 3.5);
 
                 if aabb.contains(&wp_aabb) {
                     commands.entity(eid).insert(Selected);
@@ -89,7 +91,7 @@ fn gizmos(
     {
         let wp_aabb = Aabb2d::new(world_position, Vec2::new(0., 0.));
         query.iter().for_each(|(_eid, transform)| {
-            let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() / 2.);
+            let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() * 3.5);
 
             let color = if aabb.contains(&wp_aabb) { RED } else { YELLOW };
             gizmos.rect_2d(aabb.center().xy(), aabb.half_size().xy() * 2., color);
@@ -387,6 +389,7 @@ fn main() -> Result<()> {
         .add_plugins(SandboxPlugin)
         .add_plugins(ExecutablePlugin)
         .add_plugins(RadioPlugin)
+        .add_plugins(AssetsPlugin)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .run();
 

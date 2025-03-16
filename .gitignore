@@ -1,3 +1,6 @@
 /target
 
 .units.db
+.DS_Store
+.units.db-shm
+.units.db-wal

@@ -5,14 +5,12 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct Unit {}
 
-const UNIT_SIZE: Vec3 = Vec3::new(50., 50., 1.);
-const BALL_COLOR: Color = Color::srgb(1.0, 0.5, 0.5);
+const UNIT_SIZE: Vec3 = Vec3::new(5., 5., 1.);
 
 #[derive(Bundle)]
 pub struct UnitBundle {
     unit: Unit,
-    mesh: Mesh2d,
-    material: MeshMaterial2d<ColorMaterial>,
+    sprite: Sprite,
     executable: Executable,
     transform: Transform,
     selectable: Selectable,
@@ -23,14 +21,12 @@ impl UnitBundle {
     pub fn new(
         unit_type_id: u64,
         pos: Vec2,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
+        sprite: Sprite,
         program: &Program,
     ) -> Self {
         UnitBundle {
             unit: Unit {},
-            mesh: Mesh2d(meshes.add(Circle::default())),
-            material: MeshMaterial2d(materials.add(BALL_COLOR)),
+            sprite,
             executable: Executable::from_program(unit_type_id, program),
             transform: Transform {
                 translation: pos.extend(0.),
@@ -38,7 +34,7 @@ impl UnitBundle {
                 ..default()
             },
             selectable: Selectable::new(),
-            collider: Collider::new(pos, 25.),
+            collider: Collider::new(pos, 50.),
         }
     }
 }

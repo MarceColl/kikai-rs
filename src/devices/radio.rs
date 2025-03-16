@@ -1,4 +1,3 @@
-use bevy::prelude::*;
 use raven_uxn::{Ports, Uxn, DEV_SIZE};
 use zerocopy::{BigEndian, U16};
 use zerocopy_derive::{FromBytes, Immutable, IntoBytes, KnownLayout};
@@ -46,23 +45,29 @@ impl Radio {
     pub fn deo(&mut self, vm: &mut Uxn, target: u8) -> Option<RadioMessage> {
         let d = vm.dev::<RadioPorts>();
         match target & 0x0F {
-            6 => { // Command
+            6 => {
+                // Command
                 match d.command {
                     0 => {
-                        println!("SENT RADIO PACKET AT FREQ {:X}: {:04X}{:04X}", d.freq, d.packeth.get(), d.packetl.get());
+                        println!(
+                            "SENT RADIO PACKET AT FREQ {:X}: {:04X}{:04X}",
+                            d.freq,
+                            d.packeth.get(),
+                            d.packetl.get()
+                        );
                         Some(RadioMessage {
                             origin_entity_id: None,
                             packets: [d.packeth.get(), d.packetl.get()],
                             frequency: d.freq,
                         })
-                    },
+                    }
                     _ => {
                         println!("UNKNOWN COMMAND");
                         None
                     }
                 }
-            },
-            _ => { None },
+            }
+            _ => None,
         }
     }
 }

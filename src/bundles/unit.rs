@@ -1,4 +1,5 @@
 use crate::components::*;
+use crate::tools::assembler::Program;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -24,12 +25,13 @@ impl UnitBundle {
         pos: Vec2,
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
+        program: &Program,
     ) -> Self {
         UnitBundle {
             unit: Unit {},
             mesh: Mesh2d(meshes.add(Circle::default())),
             material: MeshMaterial2d(materials.add(BALL_COLOR)),
-            executable: Executable::from_file(unit_type_id, "unit.rom"),
+            executable: Executable::from_program(unit_type_id, program),
             transform: Transform {
                 translation: pos.extend(0.),
                 scale: UNIT_SIZE,

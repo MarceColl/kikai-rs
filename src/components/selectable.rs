@@ -22,7 +22,7 @@ impl Selectable {
         }
     }
 
-    pub fn select(&mut self, commands: &mut Commands) {
+    pub fn select(&mut self, _commands: &mut Commands) {
         self.selected = true;
     }
 }

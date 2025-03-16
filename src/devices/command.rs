@@ -31,7 +31,7 @@ impl Command {
         Self {}
     }
 
-    pub fn deo(&mut self, vm: &mut Uxn, target: u8) {}
+    pub fn deo(&mut self, _vm: &mut Uxn, _target: u8) {}
 
     pub fn loop_vector(&mut self, vm: &Uxn) -> u16 {
         vm.dev::<CommandPorts>().loop_vector.get()

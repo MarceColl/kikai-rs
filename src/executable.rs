@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::components::Executable;
-use crate::tools::assembler::Program;
 use crate::radio::RadioMessage;
+use crate::tools::assembler::Program;
 
 #[derive(Event, Debug)]
 pub struct CodeReloadEvent {
@@ -28,7 +28,6 @@ fn update_executables(
         }
 
         executable.set_current_pos(transform.translation);
-
 
         if let None = executable.pc {
             let loop_vec = executable.loop_vector();

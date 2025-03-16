@@ -39,5 +39,5 @@ impl Movement {
         Movement {}
     }
 
-    pub fn deo(&mut self, vm: &mut Uxn, target: u8, transform: &mut Transform) {}
+    pub fn deo(&mut self, _vm: &mut Uxn, _target: u8, _transform: &mut Transform) {}
 }

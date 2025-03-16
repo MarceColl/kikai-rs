@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::Executable;
+use bevy::prelude::{App, Entity, Event, EventReader, Plugin, Query, Transform, Update};
 
 #[derive(Event, Copy, Clone, Debug)]
 pub struct RadioMessage {
@@ -21,7 +21,7 @@ fn route_radio_messages(
                 executable.set_radio_packets(&msg.packets);
                 executable.pc = Some(message_vec);
 
-                if let Some(mut rm) = executable.cont(&mut transform) {
+                if let Some(mut _rm) = executable.cont(&mut transform) {
                     // rm.origin_entity_id = Some(entity);
                     // out_radio_messages.send(rm);
                 }
@@ -34,8 +34,7 @@ pub struct RadioPlugin;
 
 impl Plugin for RadioPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_event::<RadioMessage>()
+        app.add_event::<RadioMessage>()
             .add_systems(Update, route_radio_messages);
     }
 }

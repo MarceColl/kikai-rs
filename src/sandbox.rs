@@ -1,17 +1,12 @@
-use rand::Rng;
 use crate::egui::{
-    style::{WidgetVisuals, Widgets},
-    text::{Fonts, LayoutJob, TextFormat},
-    vec2, Color32, ComboBox, FontData, FontDefinitions, FontFamily, FontId, Label, Pos2, RichText,
-    Sense, Stroke, WidgetText, Window,
+    text::{LayoutJob, TextFormat},
+    Color32,
 };
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
+use rand::Rng;
 use regex::Regex;
-use std::sync::Arc;
 
-use crate::bundles::UnitBundle;
-use crate::components::Executable;
 use crate::executable::CodeReloadEvent;
 use crate::tools::assembler::assemble;
 use crate::unit_repo::{UnitDefinition, UnitRepository};
@@ -91,10 +86,10 @@ fn draw_sandbox_ui(
                 }
 
                 if ui.button("Create Unit").clicked() {
-                    let mut rng = rand::thread_rng();
+                    let mut rng = rand::rng();
 
-                    let rx: i8 = rng.gen();
-                    let ry: i8 = rng.gen();
+                    let rx: i8 = rng.random();
+                    let ry: i8 = rng.random();
                     spawn_events.send(SpawnUnitRequest {
                         unit_id: 1,
                         position: Vec2::new(rx as f32, ry as f32),
@@ -111,9 +106,7 @@ fn draw_sandbox_ui(
                     }
                 }
             }
-            SandboxUIMode::CreateUnit {
-                unit_name: ref mut unit_name,
-            } => {
+            SandboxUIMode::CreateUnit { ref mut unit_name } => {
                 let name_to_create = unit_name.clone();
                 ui.add(egui::TextEdit::singleline(unit_name));
 
@@ -163,7 +156,7 @@ fn draw_editor_window(
     mut sandbox_state: ResMut<SandboxState>,
     repo: Res<UnitRepository>,
 ) {
-    let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+    let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
         let tokens = tokenize(string);
         let mut job = LayoutJob::default();
 
@@ -199,7 +192,7 @@ fn draw_editor_window(
                 }
                 if ui.button("Assemble & Save").clicked() {}
             });
-            let te = egui::TextEdit::multiline(&mut sandbox_state.current_code)
+            egui::TextEdit::multiline(&mut sandbox_state.current_code)
                 .code_editor()
                 .layouter(&mut layouter)
                 .desired_width(f32::INFINITY)

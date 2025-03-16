@@ -126,7 +126,6 @@ fn command_system(
                     match (event.button, event.state) {
                         (MouseButton::Right, ButtonState::Released) => {
                             let move_vec = executable.move_vector();
-                            println!("{:?}", world_position);
                             executable.set_move_command_coords(
                                 world_position.x as u16,
                                 world_position.y as u16,
@@ -296,6 +295,26 @@ fn executable_debugging(
    })
 }
 
+fn camera_movement(
+    mut q_camera: Query<&mut Transform, With<MainCamera>>,
+    keys: Res<ButtonInput<KeyCode>>,
+) {
+    if let Ok(mut transform) = q_camera.get_single_mut() {
+        if keys.pressed(KeyCode::ArrowLeft) {
+            transform.translation.x -= 10.0;
+        }
+        if keys.pressed(KeyCode::ArrowUp) {
+            transform.translation.y += 10.0;
+        }
+        if keys.pressed(KeyCode::ArrowRight) {
+            transform.translation.x += 10.0;
+        }
+        if keys.pressed(KeyCode::ArrowDown) {
+            transform.translation.y -= 10.0;
+        }
+    }
+}
+
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -328,6 +347,7 @@ impl Plugin for HelloPlugin {
         app.add_systems(
             Update,
             (
+                camera_movement,
                 executable_debugging,
                 command_system,
                 gizmos,
